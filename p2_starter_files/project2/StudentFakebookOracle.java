@@ -102,6 +102,12 @@ public final class StudentFakebookOracle extends FakebookOracle {
     }
 
     @Override
+
+//     Query 1 asks you to identify information about Fakebook users’ first names.
+
+// We’d like to know the longest and shortest first names by length. If there are ties between multiple names, report all tied names in alphabetical order.
+// We’d also like to know what first name(s) are the most common and how many users have that first name. If there are ties, report all tied names in alphabetical order.
+// Hint: You may consider using the LENGTH() operation in SQL. Remember that you are allowed to execute multiple SQL statements in one query.
     // Query 1
     // -----------------------------------------------------------------------------------
     // GOALS: (A) The first name(s) with the most letters
@@ -111,6 +117,7 @@ public final class StudentFakebookOracle extends FakebookOracle {
     public FirstNameInfo findNameInfo() throws SQLException {
         try (Statement stmt = oracle.createStatement(FakebookOracleConstants.AllScroll,
                 FakebookOracleConstants.ReadOnly)) {
+
             /*
                 EXAMPLE DATA STRUCTURE USAGE
                 ============================================
@@ -125,7 +132,46 @@ public final class StudentFakebookOracle extends FakebookOracle {
                 info.setCommonNameCount(42);
                 return info;
             */
-            return new FirstNameInfo(); // placeholder for compilation
+
+            // longest first names
+            ResultSet rst = stmt.executeQuery(
+            "SELECT DISTINCT FIRST_NAME " +
+            "FROM " + UsersTable + 
+            " WHERE LENGTH(FIRST_NAME) = (SELECT MAX(LENGTH(FIRST_NAME)) FROM " + UsersTable + ")" +
+            " ORDER BY FIRST_NAME");
+            FirstNameInfo info = new FirstNameInfo();
+
+            while (rst.next()){
+                info.addLongName(rst.getString(1));
+            }
+            
+            // longest first names
+            rst = stmt.executeQuery(
+            "SELECT DISTINCT FIRST_NAME " +
+            "FROM " + UsersTable + 
+            " WHERE LENGTH(FIRST_NAME) = (SELECT MIN(LENGTH(FIRST_NAME)) FROM " + UsersTable + ")" +
+            " ORDER BY FIRST_NAME");
+
+            while (rst.next()){
+                info.addShortName(rst.getString(1));
+            }
+
+            // most common first names
+            rst = stmt.executeQuery(
+                "SELECT FIRST_NAME, COUNT(FIRST_NAME)" +
+                " FROM " + UsersTable + 
+                " GROUP BY FIRST_NAME HAVING COUNT(FIRST_NAME) = " + 
+                " (SELECT MAX(c) FROM (SELECT COUNT(FIRST_NAME) AS c" +  
+                " FROM " + UsersTable + " GROUP BY FIRST_NAME))" + 
+                " ORDER BY FIRST_NAME"
+            );
+            
+            while (rst.next()){
+                info.addCommonName(rst.getString(1));
+                info.setCommonNameCount(rst.getInt(2));
+            }
+
+            return info;
         } catch (SQLException e) {
             System.err.println(e.getMessage());
             return new FirstNameInfo();
@@ -161,6 +207,10 @@ public final class StudentFakebookOracle extends FakebookOracle {
 
     @Override
     // Query 3
+    // Query 3 asks you to identify all of the Fakebook users that no longer live in their hometown. 
+    // For each such user, report their ID, first name, and last name. Results should be sorted in ascending order by the users’ ID. 
+    // If a user does not have a current city or a hometown listed, 
+    // they should not be included in the results. If every Fakebook user still lives in his/her hometown, you should return an empty FakebookArrayList.
     // -----------------------------------------------------------------------------------
     // GOALS: (A) Find the IDs, first names, and last names of users who no longer live
     //            in their hometown (i.e. their current city and their hometown are different)
@@ -177,6 +227,8 @@ public final class StudentFakebookOracle extends FakebookOracle {
                 results.add(u1);
                 results.add(u2);
             */
+
+
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
