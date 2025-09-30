@@ -1,6 +1,7 @@
 package project2;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.ResultSet;
@@ -230,11 +231,11 @@ public final class StudentFakebookOracle extends FakebookOracle {
 
             ResultSet rst = stmt.executeQuery(
                 "SELECT T.USER_ID, T.FIRST_NAME, T.LAST_NAME " +
-                " FROM " + UsersTable + " T, " + 
-                HometownCitiesTable + " H, " +
-                CurrentCitiesTable +  " K" +
-                " WHERE T.USER_ID = H.USER_ID AND" + 
-                " T.USER_ID = K.USER_ID AND H.HOMETOWN_CITY_ID <> K.CURRENT_CITY_ID " +
+                " FROM " + CurrentCitiesTable +  " K" +
+                " JOIN " + HometownCitiesTable + " H" +
+                " ON H.HOMETOWN_CITY_ID <> K.CURRENT_CITY_ID AND K.USER_ID = H.USER_ID" +
+                " JOIN " + UsersTable + " T " + 
+                " ON T.USER_ID = H.USER_ID" +
                 " ORDER BY T.USER_ID" 
             );
 
@@ -252,6 +253,17 @@ public final class StudentFakebookOracle extends FakebookOracle {
 
     @Override
     // Query 4
+    //     Query 4 asks you to identify the most highly-tagged photos. 
+    //     We will pass an integer argument num to the query function; 
+    //     you should return the top num photos with the most tagged users 
+    //     sorted in descending order by the number of tagged users (most tagged users first). 
+    //     If there are fewer than num photos with at least 1 tag, then you should return only those available photos. 
+    //     If more than one photo has the same number of tagged users, list the photo with the smaller ID first.
+
+    // For each photo, you should report the photo’s ID, the ID of the album containing the photo, 
+    // the photo’s Fakebook link, and the name of the album containing the photo. 
+    // For each reported photo, you should list the ID, first name, and last name of the users tagged in that photo. 
+    // Tagged users should be listed in ascending order by ID.
     // -----------------------------------------------------------------------------------
     // GOALS: (A) Find the IDs, links, and IDs and names of the containing album of the top
     //            <num> photos with the most tagged users
@@ -275,6 +287,41 @@ public final class StudentFakebookOracle extends FakebookOracle {
                 tp.addTaggedUser(u3);
                 results.add(tp);
             */
+
+            ResultSet rst = stmt.executeQuery(
+                "SELECT P.PHOTO_ID, P.ALBUM_ID, P.PHOTO_LINK, F.ALBUM_NAME" + 
+                " FROM " + PhotosTable + " P " + 
+                " JOIN " + AlbumsTable + " F" +
+                " ON F.ALBUM_ID = P.ALBUM_ID" +
+                " JOIN" +
+                " (SELECT TAG_PHOTO_ID, COUNT(TAG_PHOTO_ID) AS c" + 
+                " FROM " + TagsTable + 
+                " GROUP BY TAG_PHOTO_ID" + 
+                " ORDER BY c DESC, TAG_PHOTO_ID" + 
+                " FETCH FIRST " + num + " ROWS ONLY) K" + 
+                " ON K.TAG_PHOTO_ID = P.PHOTO_ID"
+            );
+            
+            while (rst.next()){
+                PhotoInfo p = new PhotoInfo(rst.getInt(1), rst.getInt(2), rst.getString(3), rst.getString(4));
+                TaggedPhotoInfo tp = new TaggedPhotoInfo(p);
+                
+                PreparedStatement ps = oracle.prepareStatement(
+                    "SELECT T.TAG_SUBJECT_ID, A.FIRST_NAME, A.LAST_NAME" + 
+                    " FROM " + UsersTable + " A, " + TagsTable + " T" + 
+                    " WHERE T.TAG_SUBJECT_ID = A.USER_ID AND T.TAG_PHOTO_ID = " + rst.getInt(1) + 
+                    " ORDER BY T.TAG_SUBJECT_ID"
+                );
+                
+                ResultSet rst2 = ps.executeQuery();
+                while (rst2.next()){
+                    UserInfo u = new UserInfo(rst2.getInt(1), rst2.getString(2), rst2.getString(3));
+                    tp.addTaggedUser(u);
+                }
+
+                results.add(tp);
+            }
+
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
