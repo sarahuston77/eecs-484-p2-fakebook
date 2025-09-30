@@ -104,10 +104,10 @@ public final class StudentFakebookOracle extends FakebookOracle {
 
     @Override
 
-//     Query 1 asks you to identify information about Fakebook users’ first names.
+//     Query 1 asks you to identify information about Fakebook users' first names.
 
-// We’d like to know the longest and shortest first names by length. If there are ties between multiple names, report all tied names in alphabetical order.
-// We’d also like to know what first name(s) are the most common and how many users have that first name. If there are ties, report all tied names in alphabetical order.
+// We'd like to know the longest and shortest first names by length. If there are ties between multiple names, report all tied names in alphabetical order.
+// We'd also like to know what first name(s) are the most common and how many users have that first name. If there are ties, report all tied names in alphabetical order.
 // Hint: You may consider using the LENGTH() operation in SQL. Remember that you are allowed to execute multiple SQL statements in one query.
     // Query 1
     // -----------------------------------------------------------------------------------
@@ -209,7 +209,7 @@ public final class StudentFakebookOracle extends FakebookOracle {
     @Override
     // Query 3
     // Query 3 asks you to identify all of the Fakebook users that no longer live in their hometown. 
-    // For each such user, report their ID, first name, and last name. Results should be sorted in ascending order by the users’ ID. 
+    // For each such user, report their ID, first name, and last name. Results should be sorted in ascending order by the users' ID. 
     // If a user does not have a current city or a hometown listed, 
     // they should not be included in the results. If every Fakebook user still lives in his/her hometown, you should return an empty FakebookArrayList.
     // -----------------------------------------------------------------------------------
@@ -260,8 +260,8 @@ public final class StudentFakebookOracle extends FakebookOracle {
     //     If there are fewer than num photos with at least 1 tag, then you should return only those available photos. 
     //     If more than one photo has the same number of tagged users, list the photo with the smaller ID first.
 
-    // For each photo, you should report the photo’s ID, the ID of the album containing the photo, 
-    // the photo’s Fakebook link, and the name of the album containing the photo. 
+    // For each photo, you should report the photo's ID, the ID of the album containing the photo, 
+    // the photo's Fakebook link, and the name of the album containing the photo. 
     // For each reported photo, you should list the ID, first name, and last name of the users tagged in that photo. 
     // Tagged users should be listed in ascending order by ID.
     // -----------------------------------------------------------------------------------
@@ -356,6 +356,57 @@ public final class StudentFakebookOracle extends FakebookOracle {
                 mp.addSharedPhoto(p);
                 results.add(mp);
             */
+
+            ResultSet rst = stmt.executeQuery(
+                "SELECT F.USER_ID, F.FIRST_NAME, F.LAST_NAME, F.YEAR_OF_BIRTH, " +
+                "F.SUSER_ID, F.SFIRST_NAME, F.SLAST_NAME, F.SYEAR_OF_BIRTH " +
+                "FROM (SELECT A.USER_ID, A.FIRST_NAME, A.LAST_NAME, A.YEAR_OF_BIRTH, " +
+                "B.USER_ID AS SUSER_ID, B.FIRST_NAME AS SFIRST_NAME, " +
+                "B.LAST_NAME AS SLAST_NAME, B.YEAR_OF_BIRTH AS SYEAR_OF_BIRTH, " +
+                "(SELECT COUNT(t1.TAG_PHOTO_ID) " +
+                "FROM " + TagsTable + " t1 " +
+                "JOIN " + TagsTable + " t2 ON t1.TAG_PHOTO_ID = t2.TAG_PHOTO_ID " +
+                "WHERE t1.TAG_SUBJECT_ID = A.USER_ID " +
+                "AND t2.TAG_SUBJECT_ID = B.USER_ID) ct " +
+                "FROM " + UsersTable + " A " +
+                "JOIN " + UsersTable + " B ON B.USER_ID > A.USER_ID " +
+                "AND B.GENDER = A.GENDER " +
+                "AND ABS(B.YEAR_OF_BIRTH - A.YEAR_OF_BIRTH) <= " + yearDiff + 
+                " WHERE NOT EXISTS (SELECT 1 FROM " + FriendsTable + " P " +
+                "WHERE A.USER_ID = P.USER1_ID AND B.USER_ID = P.USER2_ID)) F " +
+                "WHERE F.ct >= 1 " +
+                "ORDER BY F.ct DESC, F.USER_ID, F.SUSER_ID " +
+                "FETCH FIRST " + num + " ROWS ONLY"
+            );
+
+            while (rst.next()){
+                UserInfo u1 = new UserInfo(rst.getInt(1), rst.getString(2), rst.getString(3));
+                UserInfo u2 = new UserInfo(rst.getInt(5), rst.getString(6), rst.getString(7));
+                MatchPair mp = new MatchPair(u1, rst.getInt(4), u2, rst.getInt(8));
+
+                PreparedStatement ps = oracle.prepareStatement(
+                    "SELECT P.PHOTO_ID, P.ALBUM_ID, P.PHOTO_LINK, A.ALBUM_NAME " +
+                    "FROM " + PhotosTable + " P " +
+                    "JOIN " + AlbumsTable + " A ON A.ALBUM_ID = P.ALBUM_ID " +
+                    "JOIN (SELECT t1.TAG_PHOTO_ID " +
+                    "      FROM " + TagsTable +  " t1 " +
+                    "      JOIN " + TagsTable + " t2 ON t1.TAG_PHOTO_ID = t2.TAG_PHOTO_ID " +
+                    "      WHERE t1.TAG_SUBJECT_ID = " + rst.getInt(1) + " " +
+                    "      AND t2.TAG_SUBJECT_ID = " + rst.getInt(5) + ") T " +
+                    "ON T.TAG_PHOTO_ID = P.PHOTO_ID " +
+                    "ORDER BY P.PHOTO_ID"
+                );
+
+                ResultSet rst2 = ps.executeQuery();
+
+                while (rst2.next()){
+                    PhotoInfo p = new PhotoInfo(rst2.getInt(1), rst2.getInt(2), rst2.getString(3), rst2.getString(4));
+                    mp.addSharedPhoto(p);
+                }
+
+                results.add(mp);
+            }
+
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
@@ -386,6 +437,7 @@ public final class StudentFakebookOracle extends FakebookOracle {
                 up.addSharedFriend(u3);
                 results.add(up);
             */
+            
         } catch (SQLException e) {
             System.err.println(e.getMessage());
         }
